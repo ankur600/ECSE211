@@ -15,7 +15,7 @@ DELAY_SEC = 0.01 #seconds of delay between measurements
 CALIBRATION_ADJUSTMENT = 10 # number of degrees to rotate after detecting block during calibration 
 CALIBRATION_DELAY = 0.2 # seconds of delay between measurements of color sensor during calibration 
 MOTOR_DPS =  30 # speed of the wheel/platform motor in degrees per second
-
+COLORS = ["Red", "Yellow", "Blue"] # valid colors that our system recognizes
 
 print("Program start. \nWaiting for sensors to turn on...")
 
@@ -25,7 +25,6 @@ tone1 = Sound(duration=5, volume=200, pitch=1, mod_f="C3", mod_k=1)
 
 # List setup
 color_list = []
-position_list = []
 
 # Port configuration
 push_motor = Motor("A")
@@ -45,16 +44,15 @@ platform_motor.reset_encoder()
 
 def calibrate_wheel():
     "Calibrate wheel at the beggining of the program"
-    print("Calibrating wheel...")
     # if wheel is already calibrated, stop function
     color1 = COLOR_SENSOR.get_color_name()
-    if color1 == "Red" or color1 == "Blue" or color1 == "Yellow":
+    if color1 in COLORS:
         return
     while True:
         color = COLOR_SENSOR.get_color_name()
         #print(color) DEBUG
         # if color is a known cube, stop calibrating
-        if color == "Red" or color == "Blue" or color == "Yellow":
+        if color in COLORS:
             # additional adjustment to center cube
             platform_motor.set_position_relative(CALIBRATION_ADJUSTMENT)
             sleep(CALIBRATION_ADJUSTMENT/MOTOR_DPS)
@@ -64,26 +62,28 @@ def calibrate_wheel():
         sleep(CALIBRATION_DELAY)
         
             
-
-# Sort the colours in a list, with their indexes defined.
 def color_sorting():
+    "Function that reads and stores all the colors of the cubes on the wheel into the color list."
     try:
         sleep(1)
         print("Ready to collect first sample")
         # Loop is set up to not stop till break or BaseException
         while True:
-            color_name = COLOR_SENSOR.get_color_name()
-            sleep(2) # pause between measurements
-            platform_motor.set_position_relative(60)    
-            if(color_name != "Unknown" or color_name != "Black"):
-                color_list.append(color_name)
-                if len(color_list) == 6: # completed list
-                    break
+            color_name = COLOR_SENSOR.get_color_name()  
             # If the color_data is None, this means that something wrong has occurred with the data collection
             if color_name is not None:
                 print(f"Detected {color_name}")
+                if color_name in COLORS:
+                    color_list.append(color_name)
+                    sleep(2) # pause between measurements 
+                    platform_motor.set_position_relative(60) 
+                    sleep(60/MOTOR_DPS) # delay for motor
+                else:
+                    print("Invalid color. Retrying.")
+                if len(color_list) == 6: # completed list
+                    break
             print("Ready to collect next sample")
-            sleep(60/MOTOR_DPS) # delay for motor
+            
         for i in range(len(color_list)):
             print(color_list[i])
 
@@ -138,6 +138,7 @@ def push_motor_up():
     #push_motor.reset_encoder()
     
 def platform_return_motor(i):
+    "Function that returns the platform to its original state after it has been shifted by index i"
     rotation = ((i+1)*60)%360
     platform_motor.set_position_relative(-rotation)
     sleep(rotation/MOTOR_DPS)
@@ -146,7 +147,9 @@ def platform_return_motor(i):
 
 if __name__ == "__main__":
     
+    print("Calibrating wheel...")
     calibrate_wheel()
+    print("Calibration over")
     color_sorting()
     while True:
         color_name_index = color_name_check()
